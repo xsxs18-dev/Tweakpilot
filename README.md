@@ -4,7 +4,7 @@ A little floating panel for your SpringBoard that shows all your tweaks, lets yo
 
 I made this because I kept opening Sileo just to disable one tweak and check if it was the thing breaking my phone. Now it's one tap.
 
-Built for **roothide** jailbreaks like Relaxin or Dopamine roothide. Runs on iOS 15 and newer, arm64 and arm64e.
+Works on **roothide** jailbreaks like Relaxin or Dopamine roothide, and on **rootless** jailbreaks like Dopamine or palera1n. Runs on iOS 15 and newer, arm64 and arm64e.
 
 ![build](https://img.shields.io/github/actions/workflow/status/xsxs18-dev/Tweakpilot/build.yml?label=build)
 
@@ -41,13 +41,20 @@ There's a small bubble on the side of your screen. Tap it and the panel pops up.
 
 ## Installing
 
-Grab the newest `.deb` from [Releases](../../releases) and install it with Sileo, Zebra or `dpkg -i`. Then respring.
+Grab the newest release from [Releases](../../releases). Each release has two files, so pick the one that matches your jailbreak:
+
+| Your jailbreak | File |
+|---|---|
+| Relaxin, Dopamine roothide, other roothide jailbreaks | `…_roothide.deb` |
+| Dopamine, palera1n rootless, other rootless jailbreaks | `…_rootless.deb` |
+
+Install it with Sileo, Zebra or `dpkg -i`, then respring.
 
 Every push to `main` gets built and released automatically, so the newest release is always the latest code.
 
 ## How the on/off thing works
 
-Tweaks are just `.dylib` files in `jbroot/Library/MobileSubstrate/DynamicLibraries`. Turning one off renames `Name.dylib` to `Name.dylib.disabled`, and turning it on renames it back. Nothing gets deleted, and you can undo it any time.
+Tweaks are just `.dylib` files in `Library/MobileSubstrate/DynamicLibraries` inside your jailbreak folder (`/var/jb` on rootless, the random jbroot folder on roothide). Turning one off renames `Name.dylib` to `Name.dylib.disabled`, and turning it on renames it back. Nothing gets deleted, and you can undo it any time.
 
 SpringBoard isn't allowed to rename those files, so there's a small helper called `tpctl` that does it. I kept it as dumb as possible on purpose:
 
@@ -63,7 +70,8 @@ GitHub Actions builds everything. If you want to build it on your Mac:
 ```sh
 git clone --recursive https://github.com/roothide/theos.git ~/theos
 export THEOS=~/theos
-gmake package FINALPACKAGE=1
+gmake package FINALPACKAGE=1                              # roothide
+gmake package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless   # rootless
 ```
 
 ## Heads up

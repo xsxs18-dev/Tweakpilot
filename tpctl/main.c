@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#if __has_include(<roothide.h>)
+#if !defined(TP_ROOTLESS) && __has_include(<roothide.h>)
 #include <roothide.h>
 #else
 static const char *jbroot(const char *path) {

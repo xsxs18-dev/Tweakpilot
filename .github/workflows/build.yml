@@ -21,10 +21,17 @@ jobs:
       - name: Checkout roothide Theos
         run: git clone --recursive --depth 1 https://github.com/roothide/theos.git "$HOME/theos"
 
-      - name: Build package
+      - name: Build packages
         run: |
           export THEOS="$HOME/theos"
-          gmake package FINALPACKAGE=1
+          mkdir -p dist
+          VERSION=$(grep '^Version:' control | cut -d' ' -f2)
+          for SCHEME in roothide rootless; do
+            rm -rf packages .theos
+            gmake package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=$SCHEME
+            cp packages/*.deb "dist/Tweakpilot_${VERSION}-build${{ github.run_number }}_${SCHEME}.deb"
+          done
+          ls -la dist
 
       - name: Publish release
         if: github.event_name != 'pull_request'
@@ -33,9 +40,7 @@ jobs:
         run: |
           VERSION=$(grep '^Version:' control | cut -d' ' -f2)
           TAG="v${VERSION}-build${{ github.run_number }}"
-          DEB=$(ls packages/*.deb | head -n1)
-          cp "$DEB" "Tweakpilot_${VERSION}-build${{ github.run_number }}_roothide.deb"
-          gh release create "$TAG" "Tweakpilot_${VERSION}-build${{ github.run_number }}_roothide.deb" \
+          gh release create "$TAG" dist/*.deb \
             --title "Tweakpilot $VERSION (build ${{ github.run_number }})" \
-            --notes "$(git log -1 --pretty=%B | grep -v '^Co-Authored-By' | grep -v '^Claude-Session')" \
+            --notes "$(git log -1 --pretty=%B)" \
             --target "${{ github.sha }}"

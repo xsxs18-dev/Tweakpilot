@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-#if __has_include(<roothide.h>)
+#if !defined(TP_ROOTLESS) && __has_include(<roothide.h>)
 #include <roothide.h>
 #define TPJBRoot(path) jbroot(path)
 #else
