@@ -76,6 +76,10 @@ gmake package FINALPACKAGE=1                              # roothide
 gmake package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless   # rootless
 ```
 
+## Privacy
+
+TweakPilot doesn't collect any data. See the [privacy policy](PRIVACY.md).
+
 ## Heads up
 
 This is still early. I haven't been able to test it on every device and iOS version, so if something's off, open an issue with your device, iOS version and jailbreak and I'll take a look.
