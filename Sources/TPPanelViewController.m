@@ -30,7 +30,6 @@ static UIVisualEffect *TPCardEffect(void) {
 @property (nonatomic, strong) UIImageView *grip;
 @property (nonatomic, strong) NSTimer *timer;
 @property (nonatomic, strong) NSLayoutConstraint *cardWidth;
-@property (nonatomic, strong) NSLayoutConstraint *scrollHeight;
 @property (nonatomic, strong) NSArray<NSLayoutConstraint *> *paddingConstraints;
 @property (nonatomic, strong) NSUserDefaults *defaults;
 @property (nonatomic) CGFloat scale;
@@ -81,8 +80,10 @@ static UIVisualEffect *TPCardEffect(void) {
 	UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
 	self.cardWidth = [self.card.widthAnchor constraintEqualToConstant:kCardWidth];
 	self.cardWidth.priority = UILayoutPriorityDefaultHigh;
-	self.scrollHeight = [self.scrollView.heightAnchor constraintEqualToConstant:300];
-	self.scrollHeight.priority = UILayoutPriorityDefaultHigh;
+	// Sized straight from the content instead of copying contentSize back in viewDidLayoutSubviews:
+	// on iOS 16 contentSize is still stale at that point, so the card flickered between heights.
+	NSLayoutConstraint *fitContent = [self.scrollView.frameLayoutGuide.heightAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.heightAnchor];
+	fitContent.priority = UILayoutPriorityDefaultHigh;
 	self.paddingConstraints = @[
 		[self.content.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor],
 		[self.scrollView.contentLayoutGuide.bottomAnchor constraintEqualToAnchor:self.content.bottomAnchor],
@@ -102,7 +103,7 @@ static UIVisualEffect *TPCardEffect(void) {
 		[self.scrollView.bottomAnchor constraintEqualToAnchor:self.card.contentView.bottomAnchor],
 		[self.scrollView.leadingAnchor constraintEqualToAnchor:self.card.contentView.leadingAnchor],
 		[self.scrollView.trailingAnchor constraintEqualToAnchor:self.card.contentView.trailingAnchor],
-		self.scrollHeight,
+		fitContent,
 
 		[self.grip.widthAnchor constraintEqualToConstant:36],
 		[self.grip.heightAnchor constraintEqualToConstant:36],
@@ -111,14 +112,6 @@ static UIVisualEffect *TPCardEffect(void) {
 	]];
 
 	[self rebuild];
-}
-
-- (void)viewDidLayoutSubviews {
-	[super viewDidLayoutSubviews];
-	CGFloat contentHeight = self.scrollView.contentSize.height;
-	if (contentHeight > 0 && fabs(self.scrollHeight.constant - contentHeight) > 0.5) {
-		self.scrollHeight.constant = contentHeight;
-	}
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -303,11 +296,16 @@ static UIVisualEffect *TPCardEffect(void) {
 }
 
 - (void)commitScale {
-	self.card.transform = CGAffineTransformIdentity;
-	if (self.liveScale <= 0 || fabs(self.liveScale - self.scale) < 0.01) return;
+	if (self.liveScale <= 0 || fabs(self.liveScale - self.scale) < 0.01) {
+		self.card.transform = CGAffineTransformIdentity;
+		return;
+	}
 	self.scale = self.liveScale;
 	[self.defaults setDouble:self.scale forKey:kScaleKey];
 	[self rebuild];
+	// Lay out the new size before dropping the preview transform, so no frame shows the old size.
+	[self.view layoutIfNeeded];
+	self.card.transform = CGAffineTransformIdentity;
 	[[UIImpactFeedbackGenerator new] impactOccurred];
 }
 
@@ -317,8 +315,10 @@ static UIVisualEffect *TPCardEffect(void) {
 }
 
 - (void)gripDragged:(UIPanGestureRecognizer *)pan {
+	// The preview scales around the card's center, so the corner moves half the size change per axis.
 	CGPoint drag = [pan translationInView:self.view];
-	CGFloat growth = (drag.x + drag.y) / (kCardWidth * self.scale);
+	CGSize size = self.card.bounds.size;
+	CGFloat growth = 2 * (drag.x + drag.y) / MAX(size.width + size.height, 1);
 	[self previewScale:1 + growth];
 	if (pan.state == UIGestureRecognizerStateEnded || pan.state == UIGestureRecognizerStateCancelled) [self commitScale];
 }
