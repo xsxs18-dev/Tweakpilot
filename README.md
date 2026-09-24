@@ -21,7 +21,7 @@ Installed Tweaks
 ● Crane               ON
 ● Choicy              ON
 ● AppData             ON
-● CopyLog        OFF
+● CopyLog             OFF
 
 Performance
 ────────────────────
