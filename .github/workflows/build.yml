@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: brew install ldid make xz dpkg
+
+      - name: Checkout roothide Theos
+        run: git clone --recursive --depth 1 https://github.com/roothide/theos.git "$HOME/theos"
+
+      - name: Build package
+        run: |
+          export THEOS="$HOME/theos"
+          gmake package FINALPACKAGE=1
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tweakpilot-roothide
+          path: packages/*.deb
+          if-no-files-found: error
