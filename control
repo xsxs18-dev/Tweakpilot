@@ -6,4 +6,4 @@ Description: Floating control panel for your tweaks, device stats and quick acti
 Maintainer: xsxs18-dev
 Author: xsxs18-dev
 Section: Tweaks
-Depends: firmware (>= 18.0), mobilesubstrate (>= 0.9.5000)
+Depends: firmware (>= 15.0), mobilesubstrate (>= 0.9.5000)

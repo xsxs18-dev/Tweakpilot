@@ -4,7 +4,7 @@ A little floating panel for your SpringBoard that shows all your tweaks, lets yo
 
 I made this because I kept opening Sileo just to disable one tweak and check if it was the thing breaking my phone. Now it's one tap.
 
-Built for **roothide**, iOS 18 to 26, arm64 and arm64e.
+Built for **roothide** jailbreaks like Relaxin or Dopamine roothide. Runs on iOS 15 and newer, arm64 and arm64e.
 
 ![build](https://img.shields.io/github/actions/workflow/status/xsxs18-dev/Tweakpilot/build.yml?label=build)
 

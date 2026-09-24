@@ -8,7 +8,7 @@
 
 @interface TPTweakStore : NSObject
 + (NSArray<TPTweakEntry *> *)loadEntries;
-+ (void)setEnabled:(BOOL)enabled forTweak:(NSString *)name completion:(void (^)(BOOL success))completion;
-+ (void)respring;
-+ (void)restartInjection;
++ (void)setEnabled:(BOOL)enabled forTweak:(NSString *)name completion:(void (^)(NSString *error))completion;
++ (void)respring:(void (^)(NSString *error))completion;
++ (void)restartInjection:(void (^)(NSString *error))completion;
 @end

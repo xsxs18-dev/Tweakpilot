@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <spawn.h>
@@ -33,7 +32,7 @@ static int valid_name(const char *name) {
 	if (len == 0 || len > 128 || name[0] == '.' || strstr(name, "..")) return 0;
 	for (size_t i = 0; i < len; i++) {
 		unsigned char c = (unsigned char)name[i];
-		if (!(isalnum(c) || c == '.' || c == '_' || c == '-' || c == '+' || c == ' ')) return 0;
+		if (c < 0x20 || c == 0x7f || c == '/') return 0;
 	}
 	return 1;
 }

@@ -361,20 +361,37 @@ static UIVisualEffect *TPCardEffect(void) {
 	[[UIImpactFeedbackGenerator new] impactOccurred];
 
 	__weak typeof(self) weakSelf = self;
-	[TPTweakStore setEnabled:!entry.enabled forTweak:entry.name completion:^(BOOL success) {
-		if (!success) [[UINotificationFeedbackGenerator new] notificationOccurred:UINotificationFeedbackTypeError];
+	[TPTweakStore setEnabled:!entry.enabled forTweak:entry.name completion:^(NSString *error) {
 		[weakSelf reloadTweaks];
+		if (error) [weakSelf showError:error title:[NSString stringWithFormat:@"Couldn't switch %@", entry.name]];
 	}];
 }
 
 - (void)respringTapped {
-	[self confirm:@"Respring?" message:nil action:^{ [TPTweakStore respring]; }];
+	__weak typeof(self) weakSelf = self;
+	[self confirm:@"Respring?" message:nil action:^{
+		[TPTweakStore respring:^(NSString *error) {
+			if (error) [weakSelf showError:error title:@"Respring failed"];
+		}];
+	}];
 }
 
 - (void)restartInjectionTapped {
+	__weak typeof(self) weakSelf = self;
 	[self confirm:@"Restart Injection?"
 		  message:@"Performs a userspace reboot so every process is re-injected. Open apps will be closed."
-		   action:^{ [TPTweakStore restartInjection]; }];
+		   action:^{
+		[TPTweakStore restartInjection:^(NSString *error) {
+			if (error) [weakSelf showError:error title:@"Restart Injection failed"];
+		}];
+	}];
+}
+
+- (void)showError:(NSString *)message title:(NSString *)title {
+	[[UINotificationFeedbackGenerator new] notificationOccurred:UINotificationFeedbackTypeError];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)confirm:(NSString *)title message:(NSString *)message action:(void (^)(void))action {
