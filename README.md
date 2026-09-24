@@ -1,6 +1,6 @@
 <img src="assets/icon.png" width="96" alt="">
 
-# Tweakpilot
+# TweakPilot
 
 A little floating panel for your SpringBoard that shows all your tweaks, lets you turn them on and off with a tap, and has respring / userspace reboot buttons right there.
 
@@ -56,14 +56,14 @@ Install it with Sileo, Zebra or `dpkg -i`, then respring.
 
 Tweaks are just `.dylib` files in `Library/MobileSubstrate/DynamicLibraries` inside your jailbreak folder (`/var/jb` on rootless, the random jbroot folder on roothide). Turning one off renames `Name.dylib` to `Name.dylib.disabled`, and turning it on renames it back. Nothing gets deleted, and you can undo it any time.
 
-SpringBoard isn't allowed to rename those files, and on some jailbreaks (like Relaxin) it can't even start other programs. So Tweakpilot comes with a tiny background service, `tpctl`, that runs as root. SpringBoard just sends it a signal, and the service does the renaming. I kept it as dumb as possible on purpose:
+SpringBoard isn't allowed to rename those files, and on some jailbreaks (like Relaxin) it can't even start other programs. So TweakPilot comes with a tiny background service, `tpctl`, that runs as root. SpringBoard just sends it a signal, and the service does the renaming. I kept it as dumb as possible on purpose:
 
 - it only does four things: turn a tweak on, turn it off, respring, userspace reboot
 - it only touches files inside the tweak folder, no symlinks, no paths
 - every time it starts it creates a random key that only SpringBoard can read, so normal apps can't talk to it
-- it won't disable Tweakpilot itself
+- it won't disable TweakPilot itself
 
-If the panel ever says the service isn't running, reinstalling Tweakpilot or re-jailbreaking fixes it.
+If the panel ever says the service isn't running, reinstalling TweakPilot or re-jailbreaking fixes it.
 
 ## Building
 

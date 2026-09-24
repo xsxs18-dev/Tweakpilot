@@ -156,7 +156,7 @@ static NSString *daemonError(int code, int err) {
 		case 65: return @"This tweak can't be switched.";
 		case 66: return @"Tweak file not found. Try closing and reopening the panel.";
 		case 73: return [NSString stringWithFormat:@"Rename failed: %s", strerror(err)];
-		default: return [NSString stringWithFormat:@"Tweakpilot service error %d", code];
+		default: return [NSString stringWithFormat:@"TweakPilot service error %d", code];
 	}
 }
 
@@ -292,7 +292,7 @@ static BOOL relaunchSpringBoard(void) {
 	SEL sendSel = NSSelectorFromString(@"sendActions:withResult:");
 	if (!serviceClass || !actionClass || ![actionClass respondsToSelector:actionSel] || ![serviceClass respondsToSelector:sharedSel]) return NO;
 
-	id action = ((id (*)(id, SEL, NSString *, NSUInteger, NSURL *))objc_msgSend)(actionClass, actionSel, @"Tweakpilot", 1 << 2, nil);
+	id action = ((id (*)(id, SEL, NSString *, NSUInteger, NSURL *))objc_msgSend)(actionClass, actionSel, @"TweakPilot", 1 << 2, nil);
 	id service = ((id (*)(id, SEL))objc_msgSend)(serviceClass, sharedSel);
 	if (!action || ![service respondsToSelector:sendSel]) return NO;
 

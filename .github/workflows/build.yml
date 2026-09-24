@@ -29,7 +29,7 @@ jobs:
           for SCHEME in roothide rootless; do
             rm -rf packages .theos
             gmake package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=$SCHEME
-            cp packages/*.deb "dist/Tweakpilot_${VERSION}-build${{ github.run_number }}_${SCHEME}.deb"
+            cp packages/*.deb "dist/TweakPilot_${VERSION}-build${{ github.run_number }}_${SCHEME}.deb"
           done
           ls -la dist
 
@@ -41,7 +41,7 @@ jobs:
           VERSION=$(grep '^Version:' control | cut -d' ' -f2)
           TAG="v${VERSION}-build${{ github.run_number }}"
           gh release create "$TAG" dist/*.deb \
-            --title "Tweakpilot $VERSION (build ${{ github.run_number }})" \
+            --title "TweakPilot $VERSION (build ${{ github.run_number }})" \
             --notes "$(git log -1 --pretty=%B)" \
             --target "${{ github.sha }}"
 

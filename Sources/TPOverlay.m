@@ -76,7 +76,7 @@ static const CGFloat kBubbleSize = 46;
 
 	self.bubble = [UIButton buttonWithConfiguration:config primaryAction:nil];
 	self.bubble.frame = CGRectMake(0, 0, kBubbleSize, kBubbleSize);
-	self.bubble.accessibilityLabel = @"Tweakpilot";
+	self.bubble.accessibilityLabel = @"TweakPilot";
 	self.bubble.layer.shadowColor = UIColor.blackColor.CGColor;
 	self.bubble.layer.shadowOpacity = 0.3;
 	self.bubble.layer.shadowRadius = 8;

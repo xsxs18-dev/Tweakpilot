@@ -118,7 +118,7 @@ static int toggle(const char *name, int enable) {
 		return 65;
 	}
 	if (strcmp(name, SELF_NAME) == 0) {
-		fprintf(stderr, "tpctl: refusing to toggle Tweakpilot itself\n");
+		fprintf(stderr, "tpctl: refusing to toggle TweakPilot itself\n");
 		return 65;
 	}
 
