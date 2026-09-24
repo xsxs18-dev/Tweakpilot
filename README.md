@@ -1,4 +1,4 @@
-<img src="repo/icon.png" width="96" alt="">
+<img src="assets/icon.png" width="96" alt="">
 
 # Tweakpilot
 
@@ -43,22 +43,14 @@ There's a small bubble on the side of your screen. Tap it and the panel pops up.
 
 ## Installing
 
-The easiest way is my repo. Add it in Sileo or Zebra and you'll get updates automatically:
-
-```
-https://xsxs18-dev.github.io/Tweakpilot/
-```
-
-[Add to Sileo](sileo://source/https://xsxs18-dev.github.io/Tweakpilot/) · [Add to Zebra](zbra://sources/add/https://xsxs18-dev.github.io/Tweakpilot/)
-
-Your package manager picks the right version for your jailbreak on its own.
-
-If you'd rather install by hand, grab the `.deb` from [Releases](../../releases):
+Grab the newest `.deb` from [Releases](../../releases) and pick the one that matches your jailbreak:
 
 | Your jailbreak | File |
 |---|---|
 | Relaxin, Dopamine roothide, other roothide jailbreaks | `…_roothide.deb` |
 | Dopamine, palera1n rootless, other rootless jailbreaks | `…_rootless.deb` |
+
+Install it with Sileo, Zebra or `dpkg -i`, then respring.
 
 ## How the on/off thing works
 
