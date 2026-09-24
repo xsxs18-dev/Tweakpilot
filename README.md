@@ -1,19 +1,14 @@
-<div align="center">
+# Tweakpilot
 
-# 🛩️ Tweakpilot
+A little floating panel for your SpringBoard that shows all your tweaks, lets you turn them on and off with a tap, and has respring / userspace reboot buttons right there.
 
-**Your tweaks, your stats and your quick actions in one small panel on your SpringBoard.**
+I made this because I kept opening Sileo just to disable one tweak and check if it was the thing breaking my phone. Now it's one tap.
 
-![iOS](https://img.shields.io/badge/iOS-18.0%20–%2026.x-000000?style=for-the-badge&logo=apple&logoColor=white)
-![roothide](https://img.shields.io/badge/scheme-roothide-7B61FF?style=for-the-badge)
-![arch](https://img.shields.io/badge/arch-arm64%20%7C%20arm64e-2EA44F?style=for-the-badge)
-![build](https://img.shields.io/github/actions/workflow/status/xsxs18-dev/Tweakpilot/build.yml?style=for-the-badge&label=build)
+Built for **roothide**, iOS 18 to 26, arm64 and arm64e.
 
-</div>
+![build](https://img.shields.io/github/actions/workflow/status/xsxs18-dev/Tweakpilot/build.yml?label=build)
 
----
-
-## What it looks like
+## What you get
 
 ```
 Installed Tweaks
@@ -34,50 +29,36 @@ Quick Actions
 [ Respring ] [ Restart Injection ]
 ```
 
-A small bubble floats at the edge of your screen. Tap it and the panel opens. Tap anywhere outside the panel to close it again.
+There's a small bubble on the side of your screen. Tap it and the panel pops up. Tap outside the panel to close it.
 
-## Features
+- **Tap a tweak to turn it on or off.** It turns orange until you respring, so you know something's pending.
+- **Resize the panel** by pinching it, or by dragging the little arrow in the bottom right corner. It remembers the size.
+- **RAM, CPU and battery** update live while the panel is open.
+- **Respring** does what you'd expect. **Restart Injection** does a userspace reboot, so every app reloads with your current tweaks.
+- **Move the bubble** wherever you want. It snaps to the edge and stays there.
+- On iOS 26 it uses the new Liquid Glass look. On older versions you get the normal blur.
+- It hides itself on the lock screen, so nobody can mess with your tweaks while your phone is locked.
 
-| | |
-|---|---|
-| 🔌 **Turn tweaks on and off** | Tap a tweak in the list to turn it on or off. That's it. The change shows up in orange with `↻` until you respring. |
-| 📏 **Resizable panel** | Pinch the panel with two fingers, or drag the `⤡` grip in the bottom-right corner. Tweakpilot remembers the size you pick. |
-| 📊 **Live stats** | Used RAM, CPU load and battery level, refreshed every 1.5 seconds while the panel is open. |
-| ⚡ **Quick actions** | **Respring** restarts SpringBoard. **Restart Injection** does a userspace reboot, so every app reloads with your current tweaks. |
-| 🫧 **Floating bubble** | Drag it anywhere. It snaps to the nearest edge and stays where you left it. |
-| 🧊 **Liquid Glass** | Uses the real Liquid Glass material on iOS 26 and falls back to the system blur on iOS 18–25. |
-| 🔒 **Lock screen safe** | The bubble and panel are hidden while the device is locked. |
+## Installing
 
-## Installation
+Grab the newest `.deb` from [Releases](../../releases) and install it with Sileo, Zebra or `dpkg -i`. Then respring.
 
-1. Open the [**Releases**](../../releases) page.
-2. Download the newest `Tweakpilot_…_roothide.deb`.
-3. Install it with Sileo or Zebra, or run `dpkg -i` in a terminal.
-4. Respring.
+Every push to `main` gets built and released automatically, so the newest release is always the latest code.
 
-Every push to `main` is built automatically and published as its own release.
+## How the on/off thing works
 
-## Requirements
+Tweaks are just `.dylib` files in `jbroot/Library/MobileSubstrate/DynamicLibraries`. Turning one off renames `Name.dylib` to `Name.dylib.disabled`, and turning it on renames it back. Nothing gets deleted, and you can undo it any time.
 
-- iOS 18.0 to 26.x
-- A roothide jailbreak
-- ElleKit or another substrate-compatible hooking library
+SpringBoard isn't allowed to rename those files, so there's a small helper called `tpctl` that does it. I kept it as dumb as possible on purpose:
 
-## How turning tweaks off works
+- it only does `enable`, `disable`, `respring` and `userspace`
+- only `mobile` and `root` can run it
+- it only accepts plain tweak names: no paths, no `..`, no symlinks
+- it won't disable Tweakpilot itself
 
-Every tweak lives as a `.dylib` in `jbroot/Library/MobileSubstrate/DynamicLibraries`. When you turn a tweak off, Tweakpilot renames `Name.dylib` to `Name.dylib.disabled`, so the tweak isn't loaded after the next respring. Turning it back on renames it again. Nothing gets deleted.
+## Building
 
-SpringBoard isn't allowed to rename those files itself, so Tweakpilot ships a tiny helper called `tpctl` at `jbroot/usr/libexec/tweakpilot/tpctl`. The helper is kept as small as possible:
-
-- It only knows `enable`, `disable`, `respring` and `userspace`.
-- Only `mobile` and `root` can run it.
-- It only accepts plain tweak names. Paths, `..` and hidden files are refused.
-- It only renames regular files inside the tweak folder. Symlinks are refused.
-- It won't turn off Tweakpilot itself.
-
-## Building it yourself
-
-The GitHub Action handles everything. If you'd rather build on a Mac:
+GitHub Actions builds everything. If you want to build it on your Mac:
 
 ```sh
 git clone --recursive https://github.com/roothide/theos.git ~/theos
@@ -85,23 +66,10 @@ export THEOS=~/theos
 gmake package FINALPACKAGE=1
 ```
 
-The `.deb` ends up in `packages/`.
+## Heads up
 
-## Project structure
+This is still early. I haven't been able to test it on every device and iOS version, so if something's off, open an issue with your device, iOS version and jailbreak and I'll take a look.
 
-```
-Tweak.x                      hooks SpringBoard and sets up the overlay
-Sources/TPOverlay.m          the floating bubble and window
-Sources/TPPanelViewController.m   the panel itself
-Sources/TPTweakStore.m       reads the tweak list and talks to tpctl
-Sources/TPStats.m            RAM, CPU and battery
-tpctl/main.c                 the helper
-```
+Ideas are welcome too.
 
-## Feedback
-
-Found a bug or have an idea? Open an issue. Screenshots help a lot.
-
-<div align="center">
-<sub>Made by xsxs18</sub>
-</div>
+— xsxs18
