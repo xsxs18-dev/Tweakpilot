@@ -1,6 +1,7 @@
 #import "TPTweakStore.h"
 #import "TPRoot.h"
 #import <dlfcn.h>
+#import <notify.h>
 #import <objc/message.h>
 #import <spawn.h>
 #import <sys/stat.h>
@@ -140,6 +141,82 @@ static NSString *runHelper(NSArray<NSString *> *args) {
 	return [NSString stringWithFormat:@"Helper failed with code %d", WEXITSTATUS(status)];
 }
 
+static uint64_t nameHash(NSString *name) {
+	uint64_t hash = 1469598103934665603ULL;
+	for (const unsigned char *p = (const unsigned char *)name.UTF8String; *p; p++) {
+		hash ^= *p;
+		hash *= 1099511628211ULL;
+	}
+	return hash & 0xFFFFFFFFFFFFULL;
+}
+
+static NSString *daemonError(int code, int err) {
+	switch (code) {
+		case 0: return nil;
+		case 65: return @"This tweak can't be switched.";
+		case 66: return @"Tweak file not found. Try closing and reopening the panel.";
+		case 73: return [NSString stringWithFormat:@"Rename failed: %s", strerror(err)];
+		default: return [NSString stringWithFormat:@"Tweakpilot service error %d", code];
+	}
+}
+
+static NSString *askDaemon(uint64_t action, NSString *name, BOOL *reachable) {
+	*reachable = NO;
+	NSString *helper = findHelper(NULL);
+	if (!helper) return nil;
+	NSString *tokenPath = [helper.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"token"];
+	NSString *token = [[NSString stringWithContentsOfFile:tokenPath encoding:NSUTF8StringEncoding error:nil]
+		stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+	if (token.length != 32) return nil;
+
+	static uint8_t counter;
+	uint64_t seq = ++counter;
+	uint64_t value = (action << 56) | (seq << 48) | (name ? nameHash(name) : 0);
+
+	static dispatch_queue_t replyQueue;
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{ replyQueue = dispatch_queue_create("com.xsxs18.tweakpilot.reply", DISPATCH_QUEUE_SERIAL); });
+
+	NSString *request = [@"com.xsxs18.tweakpilot.request." stringByAppendingString:token];
+	NSString *response = [@"com.xsxs18.tweakpilot.response." stringByAppendingString:token];
+	dispatch_semaphore_t done = dispatch_semaphore_create(0);
+	__block uint64_t reply = 0;
+
+	int responseToken;
+	if (notify_register_dispatch(response.UTF8String, &responseToken, replyQueue, ^(int t) {
+		uint64_t state = 0;
+		notify_get_state(t, &state);
+		if ((state & 0xFF) == seq) {
+			reply = state;
+			dispatch_semaphore_signal(done);
+		}
+	}) != NOTIFY_STATUS_OK) return nil;
+
+	int requestToken;
+	if (notify_register_check(request.UTF8String, &requestToken) == NOTIFY_STATUS_OK) {
+		notify_set_state(requestToken, value);
+		notify_post(request.UTF8String);
+		notify_cancel(requestToken);
+	}
+
+	long timedOut = dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
+	notify_cancel(responseToken);
+	if (timedOut) return nil;
+
+	*reachable = YES;
+	return daemonError((int)((reply >> 8) & 0xFF), (int)((reply >> 16) & 0xFFFF));
+}
+
+static NSString *perform(uint64_t action, NSString *name, NSArray<NSString *> *helperArgs) {
+	BOOL reachable;
+	NSString *error = askDaemon(action, name, &reachable);
+	if (reachable) return error;
+
+	NSString *helperError = runHelper(helperArgs);
+	if (!helperError) return nil;
+	return [NSString stringWithFormat:@"The Tweakpilot service isn't running. Reinstall Tweakpilot or re-jailbreak, then try again.\n\n%@", helperError];
+}
+
 static BOOL renameDirectly(NSString *name, BOOL enable) {
 	NSString *dir = tweakDirectory();
 	NSString *on = [dir stringByAppendingPathComponent:[name stringByAppendingString:@".dylib"]];
@@ -150,7 +227,10 @@ static BOOL renameDirectly(NSString *name, BOOL enable) {
 }
 
 static void runInBackground(NSString *(^work)(void), void (^completion)(NSString *error)) {
-	dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+	static dispatch_queue_t queue;
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{ queue = dispatch_queue_create("com.xsxs18.tweakpilot.work", DISPATCH_QUEUE_SERIAL); });
+	dispatch_async(queue, ^{
 		NSString *error = work();
 		dispatch_async(dispatch_get_main_queue(), ^{
 			if (completion) completion(error);
@@ -165,7 +245,7 @@ static void runInBackground(NSString *(^work)(void), void (^completion)(NSString
 	}
 	runInBackground(^NSString *{
 		if (renameDirectly(name, enabled)) return nil;
-		return runHelper(@[enabled ? @"enable" : @"disable", name]);
+		return perform(enabled ? 1 : 2, name, @[enabled ? @"enable" : @"disable", name]);
 	}, ^(NSString *error) {
 		if (!error) {
 			NSMutableSet *pending = pendingNames();
@@ -195,13 +275,13 @@ static BOOL relaunchSpringBoard(void) {
 + (void)respring:(void (^)(NSString *))completion {
 	if (relaunchSpringBoard()) return;
 	runInBackground(^NSString *{
-		return runHelper(@[@"respring"]);
+		return perform(3, nil, @[@"respring"]);
 	}, completion);
 }
 
 + (void)restartInjection:(void (^)(NSString *))completion {
 	runInBackground(^NSString *{
-		return runHelper(@[@"userspace"]);
+		return perform(4, nil, @[@"userspace"]);
 	}, completion);
 }
 

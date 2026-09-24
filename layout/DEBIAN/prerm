@@ -1,0 +1,5 @@
+#!/bin/sh
+PLIST=/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist
+[ -f "/var/jb$PLIST" ] && PLIST="/var/jb$PLIST"
+launchctl unload "$PLIST" >/dev/null 2>&1
+exit 0
