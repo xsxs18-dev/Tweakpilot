@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tweakpilot</title>
+<style>
+:root { --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73; --accent: #5e5ce6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --muted: #98989d; } }
+body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, system-ui, sans-serif; }
+.card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.muted { color: var(--muted); font-size: 14px; }
+.shots { display: flex; gap: 10px; overflow-x: auto; }
+.shots img { height: 340px; border-radius: 12px; }
+ul { padding-left: 20px; margin: 8px 0 0; }
+a { color: var(--accent); }
+.row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(128,128,128,.2); }
+.row:last-child { border: 0; }
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Tweakpilot</h1>
+<div class="muted">Your tweaks, your stats and quick actions in one little panel.</div>
+</div>
+<div class="card">
+<p>Something acting weird and no idea which tweak did it? Tweakpilot puts a little bubble on your screen. Tap it and you see every tweak you have installed. Tap one to turn it off, tap again to turn it back on. Nothing gets uninstalled.</p>
+<p>You also get live RAM, CPU and battery, plus Respring and Restart Injection buttons right there.</p>
+<ul>
+<li>pinch the panel to make it bigger or smaller</li>
+<li>drag the bubble anywhere, it snaps to the edge</li>
+<li>hidden on the lock screen</li>
+<li>Liquid Glass look on iOS 26</li>
+</ul>
+</div>
+<div class="card shots">
+<img src="../screenshots/panel.jpg" alt="Tweak list">
+<img src="../screenshots/actions.jpg" alt="Stats and quick actions">
+<img src="../screenshots/bubble.jpg" alt="Floating bubble">
+</div>
+<div class="card">
+<div class="row"><span>Version</span><span>@VERSION@</span></div>
+<div class="row"><span>Compatibility</span><span>iOS 15 and newer</span></div>
+<div class="row"><span>Jailbreak</span><span>roothide and rootless</span></div>
+<div class="row"><span>Source code</span><a href="https://github.com/xsxs18-dev/Tweakpilot">GitHub</a></div>
+</div>
+</body>
+</html>

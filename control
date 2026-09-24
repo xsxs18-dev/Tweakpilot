@@ -1,9 +1,13 @@
 Package: com.xsxs18.tweakpilot
 Name: Tweakpilot
-Version: 1.1.3
+Version: 1.2.0
 Architecture: iphoneos-arm
 Description: Floating control panel for your tweaks, device stats and quick actions.
 Maintainer: xsxs18-dev
 Author: xsxs18-dev
 Section: Tweaks
 Depends: firmware (>= 15.0), mobilesubstrate (>= 0.9.5000)
+Depiction: https://xsxs18-dev.github.io/Tweakpilot/depiction/
+SileoDepiction: https://xsxs18-dev.github.io/Tweakpilot/depiction/sileo.json
+Icon: https://xsxs18-dev.github.io/Tweakpilot/icon.png
+Homepage: https://github.com/xsxs18-dev/Tweakpilot

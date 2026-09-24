@@ -44,3 +44,66 @@ jobs:
             --title "Tweakpilot $VERSION (build ${{ github.run_number }})" \
             --notes "$(git log -1 --pretty=%B)" \
             --target "${{ github.sha }}"
+
+      - name: Keep packages for the repo
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: dist/*.deb
+
+  repo:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 40
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: debs
+          path: dist
+
+      - name: Build APT repo
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq dpkg-dev apt-utils bzip2 zstd >/dev/null
+          VERSION=$(grep '^Version:' control | cut -d' ' -f2)
+          mkdir -p site/debs
+          cp -r repo/. site/
+          rm site/build-repo.py
+          cp dist/*_roothide.deb site/debs/Tweakpilot_roothide.deb
+          cp dist/*_rootless.deb site/debs/Tweakpilot_rootless.deb
+          python3 repo/build-repo.py site "$VERSION"
+          cd site
+          dpkg-scanpackages -m debs /dev/null > Packages
+          gzip -9 -k Packages
+          bzip2 -9 -k Packages
+          zstd -q -19 -k Packages
+          {
+            echo "Origin: xsxs18 Repo"
+            echo "Label: xsxs18 Repo"
+            echo "Suite: stable"
+            echo "Version: 1.0"
+            echo "Codename: ios"
+            echo "Architectures: iphoneos-arm64 iphoneos-arm64e"
+            echo "Components: main"
+            echo "Description: Tweaks by xsxs18"
+            apt-ftparchive release .
+          } > Release
+          touch .nojekyll
+          cat Packages
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

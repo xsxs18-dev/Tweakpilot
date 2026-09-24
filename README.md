@@ -1,3 +1,5 @@
+<img src="repo/icon.png" width="96" alt="">
+
 # Tweakpilot
 
 A little floating panel for your SpringBoard that shows all your tweaks, lets you turn them on and off with a tap, and has respring / userspace reboot buttons right there.
@@ -41,16 +43,22 @@ There's a small bubble on the side of your screen. Tap it and the panel pops up.
 
 ## Installing
 
-Grab the newest release from [Releases](../../releases). Each release has two files, so pick the one that matches your jailbreak:
+The easiest way is my repo. Add it in Sileo or Zebra and you'll get updates automatically:
+
+```
+https://xsxs18-dev.github.io/Tweakpilot/
+```
+
+[Add to Sileo](sileo://source/https://xsxs18-dev.github.io/Tweakpilot/) · [Add to Zebra](zbra://sources/add/https://xsxs18-dev.github.io/Tweakpilot/)
+
+Your package manager picks the right version for your jailbreak on its own.
+
+If you'd rather install by hand, grab the `.deb` from [Releases](../../releases):
 
 | Your jailbreak | File |
 |---|---|
 | Relaxin, Dopamine roothide, other roothide jailbreaks | `…_roothide.deb` |
 | Dopamine, palera1n rootless, other rootless jailbreaks | `…_rootless.deb` |
-
-Install it with Sileo, Zebra or `dpkg -i`, then respring.
-
-Every push to `main` gets built and released automatically, so the newest release is always the latest code.
 
 ## How the on/off thing works
 
