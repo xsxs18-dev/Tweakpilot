@@ -18,10 +18,10 @@
 ```
 Installed Tweaks
 ────────────────────
-● CommandBar          ON
-● PerAppOS            ON
-● SmartPaste          ON
-● BatteryBrain        OFF
+● Crane               ON
+● Choicy              ON
+● AppData             ON
+● CopyLog        OFF
 
 Performance
 ────────────────────
