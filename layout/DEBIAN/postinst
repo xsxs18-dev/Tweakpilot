@@ -1,6 +1,13 @@
 #!/bin/sh
-PLIST=/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist
-[ -f "/var/jb$PLIST" ] && PLIST="/var/jb$PLIST"
+PREFIX=
+[ -f /var/jb/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist ] && PREFIX=/var/jb
+PLIST="$PREFIX/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist"
+TOKEN="$PREFIX/usr/libexec/tweakpilot/token"
+
+head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$TOKEN"
+chown root:wheel "$TOKEN" 2>/dev/null
+chmod 644 "$TOKEN"
+
 launchctl unload "$PLIST" >/dev/null 2>&1
 launchctl load -w "$PLIST"
 exit 0

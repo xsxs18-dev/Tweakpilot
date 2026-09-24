@@ -1,5 +1,6 @@
 #!/bin/sh
-PLIST=/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist
-[ -f "/var/jb$PLIST" ] && PLIST="/var/jb$PLIST"
-launchctl unload "$PLIST" >/dev/null 2>&1
+PREFIX=
+[ -f /var/jb/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist ] && PREFIX=/var/jb
+launchctl unload "$PREFIX/Library/LaunchDaemons/com.xsxs18.tweakpilotd.plist" >/dev/null 2>&1
+[ "$1" = remove ] && rm -f "$PREFIX/usr/libexec/tweakpilot/token"
 exit 0

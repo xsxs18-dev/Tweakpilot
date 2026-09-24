@@ -188,21 +188,48 @@ static int find_tweak(uint64_t hash, char *name, size_t size) {
 	return found;
 }
 
-static int write_token(char *token, size_t size) {
+static int read_token(const char *path, char *token, size_t size) {
+	int fd = open(path, O_RDONLY | O_NOFOLLOW);
+	if (fd < 0) return 0;
+	ssize_t n = read(fd, token, size - 1);
+	close(fd);
+	if (n < 32) return 0;
+	token[32] = 0;
+	for (int i = 0; i < 32; i++) {
+		char c = token[i];
+		if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return 0;
+	}
+	return 1;
+}
+
+static int load_token(char *token, size_t size) {
+	char candidates[3][PATH_MAX];
+	root_path("/usr/libexec/tweakpilot/token", candidates[0], PATH_MAX);
+	snprintf(candidates[1], PATH_MAX, "%s", jbroot("/usr/libexec/tweakpilot/token"));
+	snprintf(candidates[2], PATH_MAX, "%s", "/usr/libexec/tweakpilot/token");
+
+	for (int i = 0; i < 3; i++) {
+		if (read_token(candidates[i], token, size)) return 1;
+		fprintf(stderr, "tpctl: can't read %s: %s\n", candidates[i], strerror(errno));
+	}
+
 	uint8_t raw[16];
 	arc4random_buf(raw, sizeof(raw));
-	for (size_t i = 0; i < sizeof(raw) && i * 2 + 2 < size; i++) snprintf(token + i * 2, 3, "%02x", raw[i]);
+	for (size_t i = 0; i < sizeof(raw); i++) snprintf(token + i * 2, 3, "%02x", raw[i]);
 
-	char dir[PATH_MAX], path[PATH_MAX];
-	resolve("/usr/libexec/tweakpilot", dir, sizeof(dir));
-	snprintf(path, sizeof(path), "%s/token", dir);
-
-	int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
-	if (fd < 0) return 0;
-	fchmod(fd, 0644);
-	ssize_t written = write(fd, token, strlen(token));
-	close(fd);
-	return written == (ssize_t)strlen(token);
+	for (int i = 0; i < 3; i++) {
+		int fd = open(candidates[i], O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+		if (fd < 0) {
+			fprintf(stderr, "tpctl: can't create %s: %s\n", candidates[i], strerror(errno));
+			continue;
+		}
+		fchmod(fd, 0644);
+		ssize_t written = write(fd, token, 32);
+		close(fd);
+		if (written == 32) return 1;
+		fprintf(stderr, "tpctl: can't write %s: %s\n", candidates[i], strerror(errno));
+	}
+	return 0;
 }
 
 static int response_token;
@@ -234,10 +261,11 @@ static void handle_request(int t) {
 
 static int run_daemon(void) {
 	char token[33] = {0};
-	if (!write_token(token, sizeof(token))) {
-		fprintf(stderr, "tpctl: could not write token\n");
+	if (!load_token(token, sizeof(token))) {
+		fprintf(stderr, "tpctl: no usable token, giving up\n");
 		return 1;
 	}
+	fprintf(stderr, "tpctl: service running\n");
 
 	char request[128];
 	snprintf(request, sizeof(request), REQUEST_PREFIX "%s", token);
