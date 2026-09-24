@@ -1,8 +1,19 @@
-# Tweakpilot
+<div align="center">
 
-A floating control panel for jailbroken iOS 18–26 that lives on your SpringBoard, built for the **roothide** layout.
+# 🛩️ Tweakpilot
 
-Tap the small floating bubble and you get:
+**Your tweaks, your stats and your quick actions in one small panel on your SpringBoard.**
+
+![iOS](https://img.shields.io/badge/iOS-18.0%20–%2026.x-000000?style=for-the-badge&logo=apple&logoColor=white)
+![roothide](https://img.shields.io/badge/scheme-roothide-7B61FF?style=for-the-badge)
+![arch](https://img.shields.io/badge/arch-arm64%20%7C%20arm64e-2EA44F?style=for-the-badge)
+![build](https://img.shields.io/github/actions/workflow/status/xsxs18-dev/Tweakpilot/build.yml?style=for-the-badge&label=build)
+
+</div>
+
+---
+
+## What it looks like
 
 ```
 Installed Tweaks
@@ -10,7 +21,7 @@ Installed Tweaks
 ● CommandBar          ON
 ● PerAppOS            ON
 ● SmartPaste          ON
-● BatteryBrain        ON
+● BatteryBrain        OFF
 
 Performance
 ────────────────────
@@ -23,77 +34,74 @@ Quick Actions
 [ Respring ] [ Restart Injection ]
 ```
 
+A small bubble floats at the edge of your screen. Tap it and the panel opens. Tap anywhere outside the panel to close it again.
+
 ## Features
-
-- **Installed Tweaks** lists every tweak in `jbroot/Library/MobileSubstrate/DynamicLibraries`. Tap a row to switch it ON or OFF. Tweakpilot renames `Name.dylib` to `Name.dylib.disabled` (and back), so the tweak stops loading after the next respring. Rows you changed show an orange `↻` until you respring.
-- **Performance** shows used RAM, total CPU load and battery level. The values refresh every 1.5 seconds while the panel is open.
-- **Quick Actions**
-  - **Respring** restarts SpringBoard (`killall -9 backboardd`).
-  - **Restart Injection** does a userspace reboot (`launchctl reboot userspace`), so every process gets re-injected with your current set of tweaks.
-- A draggable bubble that snaps to the screen edge and remembers where you left it.
-- On iOS 26 the panel uses Liquid Glass (`UIGlassEffect`). On iOS 18–25 it falls back to the system material blur.
-- The panel is hidden while the device is locked, so nobody can toggle tweaks or reboot from the lock screen.
-
-## Compatibility
 
 | | |
 |---|---|
-| iOS | 18.0 – 26.x |
-| Package scheme | roothide (`iphoneos-arm64e`) |
-| Architectures | arm64, arm64e |
-| Injected into | SpringBoard only |
+| 🔌 **Turn tweaks on and off** | Tap a tweak in the list to turn it on or off. That's it. The change shows up in orange with `↻` until you respring. |
+| 📏 **Resizable panel** | Pinch the panel with two fingers, or drag the `⤡` grip in the bottom-right corner. Tweakpilot remembers the size you pick. |
+| 📊 **Live stats** | Used RAM, CPU load and battery level, refreshed every 1.5 seconds while the panel is open. |
+| ⚡ **Quick actions** | **Respring** restarts SpringBoard. **Restart Injection** does a userspace reboot, so every app reloads with your current tweaks. |
+| 🫧 **Floating bubble** | Drag it anywhere. It snaps to the nearest edge and stays where you left it. |
+| 🧊 **Liquid Glass** | Uses the real Liquid Glass material on iOS 26 and falls back to the system blur on iOS 18–25. |
+| 🔒 **Lock screen safe** | The bubble and panel are hidden while the device is locked. |
 
-> **Note:** Tweakpilot is built and packaged for roothide on iOS 18–26. It can only run on a device where a roothide-compatible jailbreak exists for that iOS version.
+## Installation
 
-## Project layout
+1. Open the [**Releases**](../../releases) page.
+2. Download the newest `Tweakpilot_…_roothide.deb`.
+3. Install it with Sileo or Zebra, or run `dpkg -i` in a terminal.
+4. Respring.
 
-```
-Tweak.x                      SpringBoard hook; installs the overlay after launch
-Sources/
-  TPOverlay.m                overlay window, floating bubble, lock-state handling
-  TPPanelViewController.m    the panel UI
-  TPTweakStore.m             lists tweaks and calls the helper
-  TPStats.m                  RAM / CPU / battery via Mach and UIDevice
-  TPRoot.h                   roothide jbroot() wrapper
-tpctl/                       small setuid root helper (see Security)
-.github/workflows/build.yml  cloud build with roothide Theos
-```
+Every push to `main` is built automatically and published as its own release.
 
-## Building
+## Requirements
 
-Builds run **only in the cloud** via GitHub Actions (see `.github/workflows/build.yml`). Every push builds the package on a macOS runner with [roothide/theos](https://github.com/roothide/theos) and uploads the `.deb` as the `Tweakpilot-roothide` artifact.
+- iOS 18.0 to 26.x
+- A roothide jailbreak
+- ElleKit or another substrate-compatible hooking library
 
-1. Push to any branch, or start the **Build** workflow manually from the Actions tab.
-2. Download the `Tweakpilot-roothide` artifact from the finished run.
-3. Install the `.deb` with Sileo or Zebra, or run `dpkg -i`, then respring.
+## How turning tweaks off works
 
-If you want to build on a Mac yourself:
+Every tweak lives as a `.dylib` in `jbroot/Library/MobileSubstrate/DynamicLibraries`. When you turn a tweak off, Tweakpilot renames `Name.dylib` to `Name.dylib.disabled`, so the tweak isn't loaded after the next respring. Turning it back on renames it again. Nothing gets deleted.
+
+SpringBoard isn't allowed to rename those files itself, so Tweakpilot ships a tiny helper called `tpctl` at `jbroot/usr/libexec/tweakpilot/tpctl`. The helper is kept as small as possible:
+
+- It only knows `enable`, `disable`, `respring` and `userspace`.
+- Only `mobile` and `root` can run it.
+- It only accepts plain tweak names. Paths, `..` and hidden files are refused.
+- It only renames regular files inside the tweak folder. Symlinks are refused.
+- It won't turn off Tweakpilot itself.
+
+## Building it yourself
+
+The GitHub Action handles everything. If you'd rather build on a Mac:
 
 ```sh
-export THEOS=~/theos   # roothide fork of Theos
+git clone --recursive https://github.com/roothide/theos.git ~/theos
+export THEOS=~/theos
 gmake package FINALPACKAGE=1
 ```
 
-## Security
+The `.deb` ends up in `packages/`.
 
-SpringBoard runs as `mobile` and cannot rename root-owned files. Tweakpilot therefore ships a small helper, `tpctl`, installed setuid root at `jbroot/usr/libexec/tweakpilot/tpctl`. The helper is kept deliberately narrow:
+## Project structure
 
-- It accepts exactly four commands: `enable <name>`, `disable <name>`, `respring`, `userspace`.
-- Only the users `mobile` (501) and `root` may run it.
-- Tweak names must be plain file names: no `/`, no `..`, no leading dot, and only `[A-Za-z0-9 ._+-]`.
-- It only renames regular files (checked with `lstat`, so symlinks are rejected) inside the DynamicLibraries folder.
-- It refuses to disable Tweakpilot itself.
+```
+Tweak.x                      hooks SpringBoard and sets up the overlay
+Sources/TPOverlay.m          the floating bubble and window
+Sources/TPPanelViewController.m   the panel itself
+Sources/TPTweakStore.m       reads the tweak list and talks to tpctl
+Sources/TPStats.m            RAM, CPU and battery
+tpctl/main.c                 the helper
+```
 
-## Development rules
+## Feedback
 
-This project follows the rules in `CLAUDE_SICHERHEIT.md` in the parent project folder:
+Found a bug or have an idea? Open an issue. Screenshots help a lot.
 
-- Only files inside the project folder are read, created or changed.
-- No `rm` outside the project folder, and no changes to system folders.
-- No local iOS builds on Linux. All builds run in GitHub Actions.
-- Changes are committed with short English commit messages (for example `feat: add tweak toggle`) and pushed, which starts the cloud build.
-- If a GitHub Actions build fails, the cause is read from the log and fixed in this folder before pushing again.
-
-## License
-
-Private project. All rights reserved.
+<div align="center">
+<sub>Made by xsxs18</sub>
+</div>

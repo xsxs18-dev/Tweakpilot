@@ -6,7 +6,6 @@ static NSString *const kDefaultsSuite = @"com.xsxs18.tweakpilot";
 static NSString *const kBubbleCenterKey = @"BubbleCenter";
 static const CGFloat kBubbleSize = 46;
 
-// Only the bubble and presented panel receive touches; everything else falls through to SpringBoard.
 @interface TPPassthroughWindow : UIWindow
 @end
 
@@ -110,7 +109,6 @@ static const CGFloat kBubbleSize = 46;
 
 	if (pan.state != UIGestureRecognizerStateEnded && pan.state != UIGestureRecognizerStateCancelled) return;
 
-	// Snap to the nearest horizontal edge.
 	BOOL left = self.bubble.center.x < CGRectGetMidX(root.bounds);
 	CGPoint target = [self clampedCenter:CGPointMake(left ? 0 : CGRectGetMaxX(root.bounds), self.bubble.center.y)];
 	[UIView animateWithDuration:0.3 delay:0 usingSpringWithDamping:0.75 initialSpringVelocity:0.6 options:0 animations:^{
@@ -137,7 +135,6 @@ static const CGFloat kBubbleSize = 46;
 
 #pragma mark - Lock state
 
-// Never expose tweak toggles or reboot actions on the lock screen.
 - (void)observeLockState {
 	int token = 0;
 	__weak typeof(self) weakSelf = self;

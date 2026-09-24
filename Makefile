@@ -16,6 +16,5 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 SUBPROJECTS += tpctl
 include $(THEOS_MAKE_PATH)/aggregate.mk
 
-# The helper must be setuid root so it can rename tweak dylibs and reboot userspace.
 after-stage::
 	$(ECHO_NOTHING)chmod 6755 $(THEOS_STAGING_DIR)/usr/libexec/tweakpilot/tpctl$(ECHO_END)

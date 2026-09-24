@@ -5,12 +5,10 @@
 
 static const CGFloat kCardWidth = 340;
 static const CGFloat kPadding = 20;
+static const CGFloat kMinScale = 0.75;
+static const CGFloat kMaxScale = 1.5;
+static NSString *const kScaleKey = @"PanelScale";
 
-static UIFont *TPMono(CGFloat size, UIFontWeight weight) {
-	return [UIFont monospacedSystemFontOfSize:size weight:weight];
-}
-
-// Liquid Glass on iOS 26, regular material blur on iOS 18–25.
 static UIVisualEffect *TPCardEffect(void) {
 	Class glass = NSClassFromString(@"UIGlassEffect");
 	SEL effectWithStyle = NSSelectorFromString(@"effectWithStyle:");
@@ -23,13 +21,20 @@ static UIVisualEffect *TPCardEffect(void) {
 @interface TPPanelViewController () <UIGestureRecognizerDelegate>
 @property (nonatomic, strong) UIVisualEffectView *card;
 @property (nonatomic, strong) UIScrollView *scrollView;
+@property (nonatomic, strong) UIStackView *content;
 @property (nonatomic, strong) UIStackView *tweakStack;
 @property (nonatomic, strong) UILabel *pendingLabel;
 @property (nonatomic, strong) UILabel *ramValue;
 @property (nonatomic, strong) UILabel *cpuValue;
 @property (nonatomic, strong) UILabel *batteryValue;
+@property (nonatomic, strong) UIImageView *grip;
 @property (nonatomic, strong) NSTimer *timer;
+@property (nonatomic, strong) NSLayoutConstraint *cardWidth;
 @property (nonatomic, strong) NSLayoutConstraint *scrollHeight;
+@property (nonatomic, strong) NSArray<NSLayoutConstraint *> *paddingConstraints;
+@property (nonatomic, strong) NSUserDefaults *defaults;
+@property (nonatomic) CGFloat scale;
+@property (nonatomic) CGFloat liveScale;
 @end
 
 @implementation TPPanelViewController
@@ -39,40 +44,57 @@ static UIVisualEffect *TPCardEffect(void) {
 	self.view.backgroundColor = [UIColor colorWithWhite:0 alpha:0.35];
 	self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
 
+	self.defaults = [[NSUserDefaults alloc] initWithSuiteName:@"com.xsxs18.tweakpilot"];
+	CGFloat saved = [self.defaults doubleForKey:kScaleKey];
+	self.scale = saved > 0 ? MIN(MAX(saved, kMinScale), kMaxScale) : 1;
+
 	UITapGestureRecognizer *dismissTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(backgroundTapped:)];
 	dismissTap.delegate = self;
 	[self.view addGestureRecognizer:dismissTap];
 
 	self.card = [[UIVisualEffectView alloc] initWithEffect:TPCardEffect()];
 	self.card.translatesAutoresizingMaskIntoConstraints = NO;
-	self.card.layer.cornerRadius = 28;
 	self.card.layer.cornerCurve = kCACornerCurveContinuous;
 	self.card.clipsToBounds = YES;
 	[self.view addSubview:self.card];
+	[self.card addGestureRecognizer:[[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinched:)]];
 
 	self.scrollView = [UIScrollView new];
 	self.scrollView.translatesAutoresizingMaskIntoConstraints = NO;
-	self.scrollView.alwaysBounceVertical = NO;
 	[self.card.contentView addSubview:self.scrollView];
 
-	UIStackView *content = [UIStackView new];
-	content.axis = UILayoutConstraintAxisVertical;
-	content.spacing = 10;
-	content.translatesAutoresizingMaskIntoConstraints = NO;
-	[self.scrollView addSubview:content];
+	self.content = [UIStackView new];
+	self.content.axis = UILayoutConstraintAxisVertical;
+	self.content.translatesAutoresizingMaskIntoConstraints = NO;
+	[self.scrollView addSubview:self.content];
 
-	[self buildContentInto:content];
+	UIImageSymbolConfiguration *gripConfig = [UIImageSymbolConfiguration configurationWithPointSize:13 weight:UIImageSymbolWeightBold];
+	self.grip = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"arrow.up.left.and.arrow.down.right" withConfiguration:gripConfig]];
+	self.grip.tintColor = UIColor.tertiaryLabelColor;
+	self.grip.contentMode = UIViewContentModeCenter;
+	self.grip.userInteractionEnabled = YES;
+	self.grip.accessibilityLabel = @"Resize";
+	self.grip.translatesAutoresizingMaskIntoConstraints = NO;
+	[self.card.contentView addSubview:self.grip];
+	[self.grip addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(gripDragged:)]];
 
 	UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
-	NSLayoutConstraint *preferredWidth = [self.card.widthAnchor constraintEqualToConstant:kCardWidth];
-	preferredWidth.priority = UILayoutPriorityDefaultHigh;
+	self.cardWidth = [self.card.widthAnchor constraintEqualToConstant:kCardWidth];
+	self.cardWidth.priority = UILayoutPriorityDefaultHigh;
 	self.scrollHeight = [self.scrollView.heightAnchor constraintEqualToConstant:300];
 	self.scrollHeight.priority = UILayoutPriorityDefaultHigh;
+	self.paddingConstraints = @[
+		[self.content.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor],
+		[self.scrollView.contentLayoutGuide.bottomAnchor constraintEqualToAnchor:self.content.bottomAnchor],
+		[self.content.leadingAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.leadingAnchor],
+		[self.scrollView.frameLayoutGuide.trailingAnchor constraintEqualToAnchor:self.content.trailingAnchor],
+	];
 
+	[NSLayoutConstraint activateConstraints:self.paddingConstraints];
 	[NSLayoutConstraint activateConstraints:@[
 		[self.card.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
 		[self.card.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
-		preferredWidth,
+		self.cardWidth,
 		[self.card.widthAnchor constraintLessThanOrEqualToAnchor:safe.widthAnchor constant:-32],
 		[self.card.heightAnchor constraintLessThanOrEqualToAnchor:safe.heightAnchor multiplier:0.85],
 
@@ -82,16 +104,17 @@ static UIVisualEffect *TPCardEffect(void) {
 		[self.scrollView.trailingAnchor constraintEqualToAnchor:self.card.contentView.trailingAnchor],
 		self.scrollHeight,
 
-		[content.topAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.topAnchor constant:kPadding],
-		[content.bottomAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.bottomAnchor constant:-kPadding],
-		[content.leadingAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.leadingAnchor constant:kPadding],
-		[content.trailingAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.trailingAnchor constant:-kPadding],
+		[self.grip.widthAnchor constraintEqualToConstant:36],
+		[self.grip.heightAnchor constraintEqualToConstant:36],
+		[self.grip.trailingAnchor constraintEqualToAnchor:self.card.contentView.trailingAnchor],
+		[self.grip.bottomAnchor constraintEqualToAnchor:self.card.contentView.bottomAnchor],
 	]];
+
+	[self rebuild];
 }
 
 - (void)viewDidLayoutSubviews {
 	[super viewDidLayoutSubviews];
-	// Size the card to its content; the max-height constraint caps it and the rest scrolls.
 	CGFloat contentHeight = self.scrollView.contentSize.height;
 	if (contentHeight > 0 && fabs(self.scrollHeight.constant - contentHeight) > 0.5) {
 		self.scrollHeight.constant = contentHeight;
@@ -100,8 +123,7 @@ static UIVisualEffect *TPCardEffect(void) {
 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
-	[self reloadTweaks];
-	[TPStats cpuUsage]; // prime the delta
+	[TPStats cpuUsage];
 	[self refreshStats];
 	self.timer = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(refreshStats) userInfo:nil repeats:YES];
 
@@ -119,9 +141,29 @@ static UIVisualEffect *TPCardEffect(void) {
 	self.timer = nil;
 }
 
-#pragma mark - Building
+#pragma mark - Layout
 
-- (void)buildContentInto:(UIStackView *)content {
+- (UIFont *)mono:(CGFloat)size weight:(UIFontWeight)weight {
+	return [UIFont monospacedSystemFontOfSize:round(size * self.scale) weight:weight];
+}
+
+- (void)rebuild {
+	CGFloat s = self.scale;
+	self.cardWidth.constant = kCardWidth * s;
+	self.card.layer.cornerRadius = 28 * s;
+	self.content.spacing = 10 * s;
+	for (NSLayoutConstraint *constraint in self.paddingConstraints) constraint.constant = kPadding * s;
+
+	for (UIView *view in self.content.arrangedSubviews) [view removeFromSuperview];
+	[self buildContent];
+	[self reloadTweaks];
+	[self refreshStats];
+}
+
+- (void)buildContent {
+	UIStackView *content = self.content;
+	CGFloat gap = 22 * self.scale;
+
 	[content addArrangedSubview:[self sectionHeader:@"Installed Tweaks"]];
 
 	self.tweakStack = [UIStackView new];
@@ -130,25 +172,25 @@ static UIVisualEffect *TPCardEffect(void) {
 	[content addArrangedSubview:self.tweakStack];
 
 	self.pendingLabel = [UILabel new];
-	self.pendingLabel.font = TPMono(11, UIFontWeightRegular);
+	self.pendingLabel.font = [self mono:11 weight:UIFontWeightRegular];
 	self.pendingLabel.textColor = UIColor.systemOrangeColor;
 	self.pendingLabel.text = @"↻ Respring to apply changes";
 	self.pendingLabel.hidden = YES;
 	[content addArrangedSubview:self.pendingLabel];
 
-	[content setCustomSpacing:22 afterView:self.pendingLabel];
-	[content setCustomSpacing:22 afterView:self.tweakStack];
+	[content setCustomSpacing:gap afterView:self.tweakStack];
+	[content setCustomSpacing:gap afterView:self.pendingLabel];
 
 	[content addArrangedSubview:[self sectionHeader:@"Performance"]];
-	self.ramValue = [self addStatRow:@"RAM" to:content];
-	self.cpuValue = [self addStatRow:@"CPU" to:content];
-	self.batteryValue = [self addStatRow:@"Battery" to:content];
-	[content setCustomSpacing:22 afterView:content.arrangedSubviews.lastObject];
+	self.ramValue = [self addStatRow:@"RAM"];
+	self.cpuValue = [self addStatRow:@"CPU"];
+	self.batteryValue = [self addStatRow:@"Battery"];
+	[content setCustomSpacing:gap afterView:content.arrangedSubviews.lastObject];
 
 	[content addArrangedSubview:[self sectionHeader:@"Quick Actions"]];
 	UIStackView *actions = [UIStackView new];
 	actions.axis = UILayoutConstraintAxisHorizontal;
-	actions.spacing = 10;
+	actions.spacing = 10 * self.scale;
 	actions.distribution = UIStackViewDistributionFillEqually;
 	[actions addArrangedSubview:[self actionButton:@"Respring" color:UIColor.systemBlueColor action:@selector(respringTapped)]];
 	[actions addArrangedSubview:[self actionButton:@"Restart Injection" color:UIColor.systemIndigoColor action:@selector(restartInjectionTapped)]];
@@ -158,11 +200,11 @@ static UIVisualEffect *TPCardEffect(void) {
 - (UIView *)sectionHeader:(NSString *)title {
 	UIStackView *stack = [UIStackView new];
 	stack.axis = UILayoutConstraintAxisVertical;
-	stack.spacing = 6;
+	stack.spacing = 6 * self.scale;
 
 	UILabel *label = [UILabel new];
 	label.text = title;
-	label.font = TPMono(15, UIFontWeightBold);
+	label.font = [self mono:15 weight:UIFontWeightBold];
 	label.textColor = UIColor.labelColor;
 	[stack addArrangedSubview:label];
 
@@ -173,30 +215,31 @@ static UIVisualEffect *TPCardEffect(void) {
 	return stack;
 }
 
-- (UILabel *)addStatRow:(NSString *)title to:(UIStackView *)content {
+- (UILabel *)addStatRow:(NSString *)title {
 	UILabel *titleLabel = [UILabel new];
 	titleLabel.text = title;
-	titleLabel.font = TPMono(14, UIFontWeightRegular);
+	titleLabel.font = [self mono:14 weight:UIFontWeightRegular];
 	titleLabel.textColor = UIColor.secondaryLabelColor;
-	[titleLabel.widthAnchor constraintEqualToConstant:90].active = YES;
+	[titleLabel.widthAnchor constraintEqualToConstant:90 * self.scale].active = YES;
 
 	UILabel *value = [UILabel new];
 	value.text = @"—";
-	value.font = TPMono(14, UIFontWeightSemibold);
+	value.font = [self mono:14 weight:UIFontWeightSemibold];
 	value.textColor = UIColor.labelColor;
 
 	UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, value]];
 	row.axis = UILayoutConstraintAxisHorizontal;
-	[content addArrangedSubview:row];
+	[self.content addArrangedSubview:row];
 	return value;
 }
 
 - (UIButton *)actionButton:(NSString *)title color:(UIColor *)color action:(SEL)action {
+	CGFloat s = self.scale;
 	UIButtonConfiguration *config = [UIButtonConfiguration filledButtonConfiguration];
 	config.baseBackgroundColor = color;
 	config.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
-	config.contentInsets = NSDirectionalEdgeInsetsMake(10, 8, 10, 8);
-	config.attributedTitle = [[NSAttributedString alloc] initWithString:title attributes:@{NSFontAttributeName: TPMono(12, UIFontWeightSemibold)}];
+	config.contentInsets = NSDirectionalEdgeInsetsMake(10 * s, 8 * s, 10 * s, 8 * s);
+	config.attributedTitle = [[NSAttributedString alloc] initWithString:title attributes:@{NSFontAttributeName: [self mono:12 weight:UIFontWeightSemibold]}];
 	config.titleLineBreakMode = NSLineBreakByTruncatingTail;
 
 	UIButton *button = [UIButton buttonWithConfiguration:config primaryAction:nil];
@@ -208,31 +251,31 @@ static UIVisualEffect *TPCardEffect(void) {
 	UIControl *row = [UIControl new];
 	row.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", entry.name, entry.enabled ? @"on" : @"off"];
 	row.accessibilityTraits = UIAccessibilityTraitButton;
-	[row.heightAnchor constraintGreaterThanOrEqualToConstant:34].active = YES;
+	[row.heightAnchor constraintGreaterThanOrEqualToConstant:34 * self.scale].active = YES;
 
 	UILabel *dot = [UILabel new];
 	dot.text = @"●";
-	dot.font = TPMono(13, UIFontWeightRegular);
+	dot.font = [self mono:13 weight:UIFontWeightRegular];
 	dot.textColor = entry.enabled ? UIColor.systemGreenColor : UIColor.systemGrayColor;
 	[dot setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
 
 	UILabel *name = [UILabel new];
 	name.text = entry.name;
-	name.font = TPMono(14, UIFontWeightRegular);
+	name.font = [self mono:14 weight:UIFontWeightRegular];
 	name.textColor = entry.enabled ? UIColor.labelColor : UIColor.secondaryLabelColor;
 	name.lineBreakMode = NSLineBreakByTruncatingTail;
 	[name setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
 
 	UILabel *state = [UILabel new];
 	state.text = [NSString stringWithFormat:@"%@%@", entry.pending ? @"↻ " : @"", entry.enabled ? @"ON" : @"OFF"];
-	state.font = TPMono(13, UIFontWeightBold);
+	state.font = [self mono:13 weight:UIFontWeightBold];
 	state.textColor = entry.pending ? UIColor.systemOrangeColor : (entry.enabled ? UIColor.systemGreenColor : UIColor.systemGrayColor);
 	state.textAlignment = NSTextAlignmentRight;
 	[state setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
 
 	UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[dot, name, state]];
 	stack.axis = UILayoutConstraintAxisHorizontal;
-	stack.spacing = 10;
+	stack.spacing = 10 * self.scale;
 	stack.alignment = UIStackViewAlignmentCenter;
 	stack.userInteractionEnabled = NO;
 	stack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -251,6 +294,35 @@ static UIVisualEffect *TPCardEffect(void) {
 	return row;
 }
 
+#pragma mark - Resizing
+
+- (void)previewScale:(CGFloat)factor {
+	self.liveScale = MIN(MAX(self.scale * factor, kMinScale), kMaxScale);
+	CGFloat t = self.liveScale / self.scale;
+	self.card.transform = CGAffineTransformMakeScale(t, t);
+}
+
+- (void)commitScale {
+	self.card.transform = CGAffineTransformIdentity;
+	if (self.liveScale <= 0 || fabs(self.liveScale - self.scale) < 0.01) return;
+	self.scale = self.liveScale;
+	[self.defaults setDouble:self.scale forKey:kScaleKey];
+	[self rebuild];
+	[[UIImpactFeedbackGenerator new] impactOccurred];
+}
+
+- (void)pinched:(UIPinchGestureRecognizer *)pinch {
+	[self previewScale:pinch.scale];
+	if (pinch.state == UIGestureRecognizerStateEnded || pinch.state == UIGestureRecognizerStateCancelled) [self commitScale];
+}
+
+- (void)gripDragged:(UIPanGestureRecognizer *)pan {
+	CGPoint drag = [pan translationInView:self.view];
+	CGFloat growth = (drag.x + drag.y) / (kCardWidth * self.scale);
+	[self previewScale:1 + growth];
+	if (pan.state == UIGestureRecognizerStateEnded || pan.state == UIGestureRecognizerStateCancelled) [self commitScale];
+}
+
 #pragma mark - Data
 
 - (void)reloadTweaks {
@@ -265,7 +337,7 @@ static UIVisualEffect *TPCardEffect(void) {
 	if (entries.count == 0) {
 		UILabel *empty = [UILabel new];
 		empty.text = @"No tweaks found";
-		empty.font = TPMono(13, UIFontWeightRegular);
+		empty.font = [self mono:13 weight:UIFontWeightRegular];
 		empty.textColor = UIColor.secondaryLabelColor;
 		[self.tweakStack addArrangedSubview:empty];
 	}

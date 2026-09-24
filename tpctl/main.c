@@ -1,6 +1,3 @@
-// tpctl — tiny setuid helper used by Tweakpilot (SpringBoard runs as mobile and
-// cannot touch root-owned files). Deliberately does only four things.
-
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -31,7 +28,6 @@ static int usage(void) {
 	return 64;
 }
 
-// Only plain file names, no paths, no hidden files, no traversal.
 static int valid_name(const char *name) {
 	size_t len = strlen(name);
 	if (len == 0 || len > 128 || name[0] == '.' || strstr(name, "..")) return 0;
@@ -78,7 +74,6 @@ static int toggle(const char *name, int enable) {
 	const char *to = enable ? on : off;
 
 	if (!is_regular_file(from)) {
-		// Already in the requested state counts as success.
 		if (is_regular_file(to)) return 0;
 		fprintf(stderr, "tpctl: %s not found\n", from);
 		return 66;

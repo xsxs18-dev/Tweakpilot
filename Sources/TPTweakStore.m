@@ -74,7 +74,6 @@ static int runHelper(NSArray<NSString *> *args, BOOL wait) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			if (ok) {
 				NSMutableSet *pending = pendingNames();
-				// Toggling back to the original state clears the pending mark.
 				if ([pending containsObject:name]) [pending removeObject:name];
 				else [pending addObject:name];
 			}

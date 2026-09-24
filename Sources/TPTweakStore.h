@@ -3,7 +3,6 @@
 @interface TPTweakEntry : NSObject
 @property (nonatomic, copy) NSString *name;
 @property (nonatomic) BOOL enabled;
-// Toggled this session; takes effect after a respring.
 @property (nonatomic) BOOL pending;
 @end
 

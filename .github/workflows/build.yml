@@ -2,8 +2,12 @@ name: Build
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -22,9 +26,16 @@ jobs:
           export THEOS="$HOME/theos"
           gmake package FINALPACKAGE=1
 
-      - name: Upload .deb
-        uses: actions/upload-artifact@v4
-        with:
-          name: Tweakpilot-roothide
-          path: packages/*.deb
-          if-no-files-found: error
+      - name: Publish release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep '^Version:' control | cut -d' ' -f2)
+          TAG="v${VERSION}-build${{ github.run_number }}"
+          DEB=$(ls packages/*.deb | head -n1)
+          cp "$DEB" "Tweakpilot_${VERSION}-build${{ github.run_number }}_roothide.deb"
+          gh release create "$TAG" "Tweakpilot_${VERSION}-build${{ github.run_number }}_roothide.deb" \
+            --title "Tweakpilot $VERSION (build ${{ github.run_number }})" \
+            --notes "$(git log -1 --pretty=%B | grep -v '^Co-Authored-By' | grep -v '^Claude-Session')" \
+            --target "${{ github.sha }}"
