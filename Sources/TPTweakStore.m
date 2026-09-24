@@ -160,14 +160,28 @@ static NSString *daemonError(int code, int err) {
 	}
 }
 
-static NSString *askDaemon(uint64_t action, NSString *name, BOOL *reachable) {
+static NSString *askDaemon(uint64_t action, NSString *name, BOOL *reachable, NSString **diagnosis) {
 	*reachable = NO;
-	NSString *helper = findHelper(NULL);
-	if (!helper) return nil;
+	NSString *failure;
+	NSString *helper = findHelper(&failure);
+	if (!helper) {
+		*diagnosis = failure;
+		return nil;
+	}
+
 	NSString *tokenPath = [helper.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"token"];
-	NSString *token = [[NSString stringWithContentsOfFile:tokenPath encoding:NSUTF8StringEncoding error:nil]
+	struct stat st;
+	if (stat(tokenPath.fileSystemRepresentation, &st) != 0) {
+		*diagnosis = [NSString stringWithFormat:@"Service key missing (%s). The service never started.", strerror(errno)];
+		return nil;
+	}
+	NSError *readError;
+	NSString *token = [[NSString stringWithContentsOfFile:tokenPath encoding:NSUTF8StringEncoding error:&readError]
 		stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-	if (token.length != 32) return nil;
+	if (token.length != 32) {
+		*diagnosis = [NSString stringWithFormat:@"Service key not readable (%@).", readError.localizedDescription ?: @"wrong length"];
+		return nil;
+	}
 
 	static uint8_t counter;
 	uint64_t seq = ++counter;
@@ -183,25 +197,38 @@ static NSString *askDaemon(uint64_t action, NSString *name, BOOL *reachable) {
 	__block uint64_t reply = 0;
 
 	int responseToken;
-	if (notify_register_dispatch(response.UTF8String, &responseToken, replyQueue, ^(int t) {
+	uint32_t status = notify_register_dispatch(response.UTF8String, &responseToken, replyQueue, ^(int t) {
 		uint64_t state = 0;
 		notify_get_state(t, &state);
 		if ((state & 0xFF) == seq) {
 			reply = state;
 			dispatch_semaphore_signal(done);
 		}
-	}) != NOTIFY_STATUS_OK) return nil;
+	});
+	if (status != NOTIFY_STATUS_OK) {
+		*diagnosis = [NSString stringWithFormat:@"Can't listen for the service (notify %u).", status];
+		return nil;
+	}
 
 	int requestToken;
-	if (notify_register_check(request.UTF8String, &requestToken) == NOTIFY_STATUS_OK) {
-		notify_set_state(requestToken, value);
-		notify_post(request.UTF8String);
+	status = notify_register_check(request.UTF8String, &requestToken);
+	if (status == NOTIFY_STATUS_OK) {
+		status = notify_set_state(requestToken, value);
+		if (status == NOTIFY_STATUS_OK) status = notify_post(request.UTF8String);
 		notify_cancel(requestToken);
+	}
+	if (status != NOTIFY_STATUS_OK) {
+		notify_cancel(responseToken);
+		*diagnosis = [NSString stringWithFormat:@"Can't reach the service (notify %u).", status];
+		return nil;
 	}
 
 	long timedOut = dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
 	notify_cancel(responseToken);
-	if (timedOut) return nil;
+	if (timedOut) {
+		*diagnosis = @"Service key found, but the service didn't answer. It may have crashed or be stuck.";
+		return nil;
+	}
 
 	*reachable = YES;
 	return daemonError((int)((reply >> 8) & 0xFF), (int)((reply >> 16) & 0xFFFF));
@@ -209,12 +236,13 @@ static NSString *askDaemon(uint64_t action, NSString *name, BOOL *reachable) {
 
 static NSString *perform(uint64_t action, NSString *name, NSArray<NSString *> *helperArgs) {
 	BOOL reachable;
-	NSString *error = askDaemon(action, name, &reachable);
+	NSString *diagnosis = @"unknown";
+	NSString *error = askDaemon(action, name, &reachable, &diagnosis);
 	if (reachable) return error;
 
 	NSString *helperError = runHelper(helperArgs);
 	if (!helperError) return nil;
-	return [NSString stringWithFormat:@"The Tweakpilot service isn't running. Reinstall Tweakpilot or re-jailbreak, then try again.\n\n%@", helperError];
+	return [NSString stringWithFormat:@"Service: %@\n\nHelper: %@", diagnosis, helperError];
 }
 
 static BOOL renameDirectly(NSString *name, BOOL enable) {
