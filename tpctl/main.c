@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <mach-o/dyld.h>
 #include <limits.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -21,6 +22,21 @@ static const char *jbroot(const char *path) {
 #define SELF_NAME "Tweakpilot"
 
 extern char **environ;
+
+static void root_path(const char *path, char *out, size_t size) {
+	static const char suffix[] = "/usr/libexec/tweakpilot/tpctl";
+	char exe[PATH_MAX], real[PATH_MAX];
+	uint32_t len = sizeof(exe);
+	if (_NSGetExecutablePath(exe, &len) == 0 && realpath(exe, real)) {
+		size_t n = strlen(real), m = sizeof(suffix) - 1;
+		if (n > m && strcmp(real + n - m, suffix) == 0) {
+			real[n - m] = 0;
+			snprintf(out, size, "%s%s", real, path);
+			return;
+		}
+	}
+	snprintf(out, size, "%s", jbroot(path));
+}
 
 static int usage(void) {
 	fprintf(stderr, "usage: tpctl enable|disable <tweak> | respring | userspace\n");
@@ -65,7 +81,7 @@ static int toggle(const char *name, int enable) {
 	}
 
 	char dir[PATH_MAX], on[PATH_MAX], off[PATH_MAX];
-	snprintf(dir, sizeof(dir), "%s", jbroot("/Library/MobileSubstrate/DynamicLibraries"));
+	root_path("/Library/MobileSubstrate/DynamicLibraries", dir, sizeof(dir));
 	snprintf(on, sizeof(on), "%s/%s.dylib", dir, name);
 	snprintf(off, sizeof(off), "%s/%s.dylib.disabled", dir, name);
 
@@ -102,13 +118,13 @@ int main(int argc, char *argv[]) {
 	}
 	if (strcmp(cmd, "respring") == 0 && argc == 2) {
 		char path[PATH_MAX];
-		snprintf(path, sizeof(path), "%s", jbroot("/usr/bin/killall"));
+		root_path("/usr/bin/killall", path, sizeof(path));
 		char *const args[] = {"killall", "-9", "backboardd", NULL};
 		return run(path, args);
 	}
 	if (strcmp(cmd, "userspace") == 0 && argc == 2) {
 		char path[PATH_MAX];
-		snprintf(path, sizeof(path), "%s", jbroot("/usr/bin/launchctl"));
+		root_path("/usr/bin/launchctl", path, sizeof(path));
 		char *const args[] = {"launchctl", "reboot", "userspace", NULL};
 		return run(path, args);
 	}
