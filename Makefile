@@ -20,7 +20,7 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 SUBPROJECTS += tpctl
 include $(THEOS_MAKE_PATH)/aggregate.mk
 
-STAGED_ROOT = $(THEOS_STAGING_DIR)$(THEOS_PACKAGE_INSTALL_PREFIX)
+STAGED_ROOT = $(THEOS_STAGING_DIR)
 
 after-stage::
 	$(ECHO_NOTHING)chmod 6755 $(STAGED_ROOT)/usr/libexec/tweakpilot/tpctl$(ECHO_END)

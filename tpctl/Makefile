@@ -13,6 +13,6 @@ ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
 tpctl_CFLAGS += -DTP_ROOTLESS
 endif
 tpctl_CODESIGN_FLAGS = -Sentitlements.plist
-tpctl_INSTALL_PATH = $(THEOS_PACKAGE_INSTALL_PREFIX)/usr/libexec/tweakpilot
+tpctl_INSTALL_PATH = /usr/libexec/tweakpilot
 
 include $(THEOS_MAKE_PATH)/tool.mk
